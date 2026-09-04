@@ -2,6 +2,7 @@
 we are building a program for 1 week that does a complex job
 
 print(print("Hello world"));
+
 UNDERSTAND THE COST OF EVERY SINGLE LINE YOU WRITE;
 PySect (A CLI Python Runtime Diagnostic & Bytecode Inspector).
 
