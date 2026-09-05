@@ -2,6 +2,8 @@
 Building the lifecycle tracker
 """
 
+import ctypes
+import dis
 import gc
 import sys
 
@@ -46,7 +48,7 @@ def lifecycle_tracker(obj):
     print(f" Memory address in RAM: {' ' * 20} {hex(id(obj))} \n")
     print("#" * 50)
     print("\n <<< Deep size analysis >>> \n")
-    print(f" Feature {' ' * 40} value")
+    print(f" Feature {' ' * 20} value")
     print("_" * 50)
     print(f" Shell or container size {' ' * 12} {sys.getsizeof(obj)} bytes")
     print(f" Total size (internal data) {' ' * 10} {get_deep_size(obj)} bytes")
@@ -157,35 +159,177 @@ def compare_header_overhead(obj):
 
 """_summary_
     2. Goal: Expose the internal growth strategies and memory footprints 
-       of dynamic containers (list vs dict vs tuple vs set).
+    of dynamic containers (list vs dict vs tuple vs set).
 """
-
-
-def containers(con):
-    print()
 
 
 # test requirements
 
+
 # 1. Write a function that continuously appends items to a
 # list and measures sys.getsizeof() on each iteration to reveal
 # CPython's array re-allocation growth pattern
+class PyListObject(ctypes.Structure):
+    _fields_ = [
+        ("ob_refcnt", ctypes.c_ssize_t),
+        ("ob_type", ctypes.c_void_p),
+        ("ob_size", ctypes.c_ssize_t),
+        ("ob_item", ctypes.POINTER(ctypes.c_void_p)),  # Direct array pointer
+        ("allocated", ctypes.c_ssize_t),
+    ]
 
-
-def continous_append_test():
-    test_list = []
+def continous_append_test(container):
+    print()
+    print("=" * 60)
+    print(
+        f"\n INTERNAL GROWTH STRATEGY TEST for {container.__class__.__name__} \n {'_' * 60} \n"
+    )
+    print("=" * 60)
+    print(
+        f"\n Process {' ' * 5} Size (bytes) {' ' * 5}  Pointer ID {' ' * 10} Overhead (bytes) {' ' * 5} Reallocation?"
+    )
+    # determine reallocation pattern
+    pattern = []
+    addresses = []
+    list_struct = PyListObject.from_address(id(container))
+    # determine CPython bit to calculate offsets
+    reallocated = False
+    offset = 24 if sys.maxsize > 2**32 else 12
     for i in range(1, 21):
-        test_list.append(i)
-        print()
-    return test_list 
+        # Extracts the direct pointer address to the contiguous items array previous instance
+        array_addr = ctypes.cast(list_struct.ob_item, ctypes.c_void_p).value
+        # determine previous instance size of object
+        size = sys.getsizeof(container)
+
+        container.append(i)
+
+        # Extracts the direct pointer address to the contiguous items array next instance
+        array_addr_after = ctypes.cast(list_struct.ob_item, ctypes.c_void_p).value
+        # determine next instance size of object
+        size_after = sys.getsizeof(container)
+
+        # check if reallocation occured
+        reallocated = array_addr != array_addr_after
+
+        if size != size_after:
+            pattern.append(size_after)
+
+        address_of_i = hex(id(i))
+        addresses.append(address_of_i)
+
+        deep_size = get_deep_size(container)
+        overhead = deep_size - size
+        memory_address = hex(id(container))
+        ref_count = sys.getrefcount(container)
+        
+        pointer_hex = hex(array_addr_after) if array_addr_after is not None else "0x0"
+
+        print(
+            f" Append #{i} {' ' * 5} {size} {' ' * 10}  #-- {pointer_hex} {' ' * 10} {overhead} {' ' * 10} {reallocated}"
+        )
+    return pattern
+
+
+# test subjects
+test_list = []
+# Sample data
+keys = ["name", "age", "role", "salary", "department"]
+values = ["Festus", 24, "Frontend Engineer", 120000, "Engineering"]
+
+# 1. Standard Dict
+dict_obj = dict(zip(keys, values))
+
+# 2. Tuple of key-value pairs
+tuple_obj = tuple(zip(keys, values))
+
+
+# 3. Standard Object with __dict__
+class StandardClass:
+    def __init__(self, k, v):
+        for key, val in zip(k, v):
+            setattr(self, key, val)
+
+
+std_obj = StandardClass(keys, values)
+
+
+# 4. Object using __slots__
+class SlotsClass:
+    __slots__ = ("age", "department", "name", "role", "salary")
+
+    def __init__(self, k, v):
+        for key, val in zip(k, v):
+            setattr(self, key, val)
+
+
+slots_obj = SlotsClass(keys, values)
+
+
+def containers():
+    result = continous_append_test(test_list)
+    print()
+    print("#" * 60)
+    print(f"\n Memory addresses of appended items: {result} \n")
+
+
+# Dict Overhead Profiler: Compare the memory footprint of a dict vs a
+# tuple of key-value pairs vs __slots__ vs a standard object __dict__.
+
+
+def compare_memory_footprint():
+    dict_sz = get_deep_size(dict_obj)
+    tupple = get_deep_size(tuple_obj)
+    std = get_deep_size(std_obj)
+    slots = get_deep_size(slots_obj)
+
+    print(f"{'=' * 60} \n MEMORY FOOTPRINT OF OBJECT:  \n {'=' * 60}")
+    print(f" dict object : {dict_sz}bytes")
+    print(f" tupple object : {tupple}bytes")
+    print(f" standard object : {std}bytes")
+    print(f" slots object : {slots}bytes")
+    compared_max = max(dict_sz, tupple, std, slots)
+    print()
+    print(f"Container with the Max Overhead: {compared_max} bytes")
+
+
+"""_summary_
+Bytecode & Stack Frame Engine (pysect.disassembler)
+
+Goal: Analyze dynamic typing costs and opcode execution sequences using dis.
+"""
+
+
+def dissasssembler(func):
+    print()
+    print(f"{'=' * 60} \n BYTECODE AND STACK TRACE \n {'=' * 60}\n")
+    print(f"LINE {' ' * 8} OPCODE {' ' * 18} STACK EFF")
+    print("_" * 60)
+    dis.dis(func)
+
+
+# pysect
+def pysect(func):
+    dissasssembler(func)
+    containers()
+    lifecycle_tracker(func)
 
 
 if __name__ == "__main__":
     print("Actions that can be performed >>> \n")
+    print(" LIFECYCLE TESTING >>> \n")
     print("1. Inspect object lifecycle")
     print("2. Demonstrate reference count mutability")
     print("3. Compare reference counts")
     print("4. Identify PyObject header overhead")
+
+    print("\n INTERNAL GROWTH STRATEGY TESTING >>> \n")
+    print("5. Inspect internal growth strategy of dynamic containers")
+    print("6. Inspect Memory footprint of dynamic container with K,v pairs")
+
+    print("\n BYTE CODE AND STACK TRACING >>> \n")
+    print("7. Evaluate the excute bytecode process of a function")
+
+    print("\n POST PROCESS >>> SELECT 8")
 
     choice = int(input("\n Enter test Choice >>> "))
     snippet_format = input(
@@ -220,6 +364,19 @@ if __name__ == "__main__":
             compare_header_overhead(empty_tuple)
             compare_header_overhead(empty_list)
             compare_header_overhead(empty_dict)
+        elif choice == 5:
+            containers()
+        elif choice == 6:
+            compare_memory_footprint()
+        elif choice == 7:
+            dissasssembler(containers)
+        elif choice == 8:
+            print("-" * 80)
+            print("|")
+            print(f" \n | {' ' * 10} EVALUATING ALL INSPECTION PROCESS {' ' * 40} | \n")
+            print("|")
+            print("-" * 80)
+            pysect(containers)
     else:
         print(" Invalid input. Please enter 'y' or 'n'.")
     print()
