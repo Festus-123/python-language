@@ -37,9 +37,3 @@ def log_step(fn: Callable[..., Any]) -> Callable[..., Any]:
             return result
 
         return sync_wrapper
-
-
-def cpu_bound(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to tag CPU-heavy tasks for ProcessPool routing."""
-    setattr(func, "__cpu_bound__", True)
-    return func
