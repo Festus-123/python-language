@@ -47,12 +47,12 @@ import time
 from typing import Any, Self
 
 import numpy as np
-from utils import log_step
+from utils import log_step, DatasetGenerator
 
 
 class Datavault:
-    def __init__(self: Any) -> None:
-        pass
+    def __init__(self: Any, steps: list) -> None:
+        self.steps = steps
 
     def __enter__(self) -> Self:
         return self
@@ -60,36 +60,15 @@ class Datavault:
     def __exit__(self: Any, exc_type, exc, tb) -> None:
         pass
 
-    @log_step
-    def create_data_store_and_load_store_data(
-        self: Any, store_name: str, store_content_size: int
-    ) -> None:
-        # Create an array of 100,000 random 3D coordinates (float32)
-        coordinates = np.random.randn(store_content_size, 3).astype(np.float32)
+    def __call__(self: Any, stream: list) -> Any:
+        for step in stream:
+            step()
 
-        start = time.perf_counter()
-
-        # Save directly to binary format
-        coordinates.tofile(store_name)
-
-        # Read binary back into NumPy instantly
-        loaded_coords = np.fromfile(store_name, dtype=np.float32).reshape(-1, 3)
-        transformed_np = loaded_coords * 1.5
-        transformed_np[:, 2] += 10.0
-
-        duration = time.perf_counter() - start
-        print(f"\n {' ' * 10} NumPy Vectorized time: {duration:.4f} seconds \n")
-
-    def __call__(self: Any, name: str, size: int) -> Any:
-        print(f"\n {' ' * 10} DATAVAULT")
-        print("_" * 50)
-        print()
-        self.create_data_store_and_load_store_data(
-            store_name=name, store_content_size=size
-        )
-        print("\n Programme executed successfully...")
 
 
 if __name__ == "__main__":
-    datavault = Datavault()
-    datavault("mesh_data.bin", 1_000_000)
+    print(f"\n {' ' * 10} DATAVAULT")
+    print("_" * 50)
+    print()
+    print("\n Programme starting successfully...")
+

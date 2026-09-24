@@ -1,6 +1,3 @@
-
-import numpy as np
-
 # # Create an array of 100,000 random 3D coordinates (float32)
 # coordinates = np.random.randn(1_000_000_000, 3).astype(np.float32)
 
@@ -12,6 +9,7 @@ import numpy as np
 
 # print("Original shape:", coordinates.shape)
 # print("Loaded shape:  ", loaded_coords.shape)
+
 
 import time
 
