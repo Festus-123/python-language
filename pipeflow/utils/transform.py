@@ -33,7 +33,7 @@ class Transform:
         if self.file_handle:
             self.file_handle.close()
             self.file_handle = None
-          # Propagate exceptions if any occurred
+        # Propagate exceptions if any occurred
 
     @log_step
     def __call__(self, stream: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
